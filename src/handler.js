@@ -8,13 +8,24 @@ export class MessageHandler {
     this.config = config;
     this.rag = rag || null;
     this.bot = bot;
+    this.debug = !!process.env.BOT_DEBUG;
+  }
+
+  log(msg) {
+    if (this.debug) console.log(`[DEBUG handler] ${msg}`);
   }
 
   async handle(message) {
-    if (message.self()) return null;
+    if (message.self()) {
+      this.log('拦截: 机器人自身消息');
+      return null;
+    }
 
     const room = message.room();
-    if (!room) return null;
+    if (!room) {
+      this.log('拦截: 私聊消息（仅处理群聊）');
+      return null;
+    }
 
     let type;
     try {
@@ -22,15 +33,27 @@ export class MessageHandler {
     } catch {
       type = null;
     }
-    if (type !== MESSAGE_TYPE_TEXT) return null;
+    if (type !== MESSAGE_TYPE_TEXT) {
+      this.log(`拦截: 非文本消息 type=${type}`);
+      return null;
+    }
 
-    const topic = await room.topic().catch(() => '');
+    let topic = '';
+    try {
+      topic = await room.topic();
+    } catch {
+      topic = '';
+    }
     if (this.config.rooms.length > 0 && !this.config.rooms.includes(topic)) {
+      this.log(`拦截: 群 "${topic}" 不在白名单 [${this.config.rooms.join(', ')}] 中`);
       return null;
     }
 
     const text = message.text() || '';
-    if (!text.trim()) return null;
+    if (!text.trim()) {
+      this.log('拦截: 空文本消息');
+      return null;
+    }
 
     let mentioned = false;
     try {
@@ -40,6 +63,7 @@ export class MessageHandler {
     }
 
     if (mentioned) {
+      this.log(`命中 @: 文本=${JSON.stringify(text)}`);
       const query = await extractMentionQuery(message);
       if (query) {
         if (!this.rag) return this.config.mentionReply;
@@ -50,8 +74,12 @@ export class MessageHandler {
     }
 
     const rule = matchRule(text, this.config.keywordRules || []);
-    if (rule) return rule.reply;
+    if (rule) {
+      this.log(`命中关键词规则 "${rule.id}": ${JSON.stringify(text)}`);
+      return rule.reply;
+    }
 
+    this.log(`未命中任何规则: ${JSON.stringify(text)}`);
     return null;
   }
 }

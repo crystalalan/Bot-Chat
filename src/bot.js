@@ -32,6 +32,17 @@ export async function createBot({ config, handler, rateLimiter }) {
 
   bot.on('message', async (message) => {
     try {
+      const debug = !!process.env.BOT_DEBUG;
+      if (debug) {
+        const room = message.room();
+        let topic = '';
+        let type = '';
+        try { topic = room ? await room.topic() : '(私聊)'; } catch { topic = '(未知)'; }
+        try { type = message.type(); } catch { type = '?'; }
+        const from = (() => { try { return message.talker().name(); } catch { return '?'; } })();
+        console.log(`[DEBUG 消息] type=${type} 群=${topic} 发送者=${from} 文本=${JSON.stringify(message.text())}`);
+      }
+
       const reply = await handler.handle(message);
       if (reply) {
         if (!rateLimiter.allow()) {
@@ -41,9 +52,12 @@ export async function createBot({ config, handler, rateLimiter }) {
         const room = message.room();
         if (room) await room.say(reply);
         else await message.say(reply);
+        if (debug) console.log(`[DEBUG 已回复] ${JSON.stringify(reply)}`);
+      } else if (debug) {
+        console.log('[DEBUG 未回复] handler 返回 null（未命中或已被过滤）');
       }
     } catch (err) {
-      console.error('[消息处理异常]', err.message);
+      console.error('[消息处理异常]', err);
     }
   });
 
