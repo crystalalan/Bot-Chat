@@ -18,6 +18,20 @@ describe('textSimilarityScores', () => {
     expect(scores[0]).toBeGreaterThan(scores[1]);
   });
 
+  test('中文检索能匹配语义相关文本', () => {
+    const scores = textSimilarityScores('如何安装依赖', ['运行 npm install 安装所有依赖', '复制配置文件并修改']);
+    expect(scores[0]).toBeGreaterThan(scores[1]);
+    expect(scores[0]).toBeGreaterThan(0);
+  });
+
+  test('中文长查询匹配对应知识库片段', () => {
+    const scores = textSimilarityScores('怎么配置环境变量', [
+      '运行 npm install 安装所有依赖',
+      '配置 USER_LLM_API_KEY 环境变量',
+    ]);
+    expect(scores[1]).toBeGreaterThan(scores[0]);
+  });
+
   test('空查询返回全零', () => {
     expect(textSimilarityScores('', ['abc'])).toEqual([0]);
   });

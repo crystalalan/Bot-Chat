@@ -12,12 +12,31 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+const CJK_RE = /[\u4e00-\u9fff]+/g;
+const STOP_CHARS = new Set('的了么吗呢吧啊呀呀哦嗯好啊哟哦在是有和与及或之其这那'.split(''));
+
 function tokenize(text) {
-  return String(text || '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .split(' ')
-    .filter(Boolean);
+  const s = String(text || '').toLowerCase();
+  const tokens = new Set();
+
+  const cjkSegs = s.match(CJK_RE) || [];
+  for (const seg of cjkSegs) {
+    for (let i = 0; i < seg.length; i++) {
+      const single = seg[i];
+      if (!STOP_CHARS.has(single)) tokens.add(single);
+      if (i + 1 < seg.length) {
+        const bigram = seg.slice(i, i + 2);
+        if (!STOP_CHARS.has(bigram[0]) && !STOP_CHARS.has(bigram[1])) {
+          tokens.add(bigram);
+        }
+      }
+    }
+  }
+
+  const others = s.replace(CJK_RE, ' ').match(/[a-z0-9]+/g) || [];
+  for (const w of others) tokens.add(w);
+
+  return [...tokens];
 }
 
 export function computeEmbeddingSimilarity(queryVec, chunkVecs) {
@@ -25,15 +44,23 @@ export function computeEmbeddingSimilarity(queryVec, chunkVecs) {
 }
 
 export function textSimilarityScores(query, texts) {
-  const q = new Set(tokenize(query));
-  if (q.size === 0) return texts.map(() => 0);
+  const qTokens = tokenize(query);
+  if (qTokens.length === 0) return texts.map(() => 0);
+
   return texts.map((t) => {
     const tTokens = tokenize(t);
     if (tTokens.length === 0) return 0;
-    const overlap = tTokens.filter((tok) => q.has(tok)).length;
+
+    const tSet = new Set(tTokens);
+    let overlap = 0;
+    for (const tok of qTokens) {
+      if (tSet.has(tok)) overlap += 1;
+    }
+
     const coverage = overlap / tTokens.length;
-    const contains = q.size > 0 && Array.from(q).some((tok) => t.includes(tok)) ? 0.1 : 0;
-    return coverage + contains;
+    const queryCoverage = overlap / qTokens.length;
+    const contains = qTokens.some((tok) => t.includes(tok)) ? 0.15 : 0;
+    return coverage + queryCoverage * 0.5 + contains;
   });
 }
 
@@ -75,6 +102,9 @@ export class RAG {
   async answer(query) {
     const hits = await this.retrieve(query);
     if (hits.length === 0) {
+      if (process.env.BOT_DEBUG) {
+        console.log(`[DEBUG rag] 检索为空。知识库文本块数=${this.store?.size ?? 0}，查询="${query}"`);
+      }
       return { answer: this.config.noResultReply, hits: [] };
     }
 
@@ -98,7 +128,8 @@ export class RAG {
     try {
       const answer = await this.llm.chat(messages);
       return { answer, hits };
-    } catch {
+    } catch (err) {
+      console.error(`[RAG 错误] 大模型调用失败: ${err.message}`);
       return { answer: this.config.noResultReply, hits };
     }
   }
