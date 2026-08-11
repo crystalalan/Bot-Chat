@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
 import { loadConfig } from './config.js';
 import { buildKnowledge } from './kb/index.js';
 import { LLMClient } from './llm.js';
@@ -7,7 +9,23 @@ import { MessageHandler } from './handler.js';
 import { RateLimiter } from './ratelimit.js';
 import { createBot } from './bot.js';
 
+const MEMORY_CARD_FILE = 'bot-chat.memory-card.json';
+
+function handleRelogin() {
+  const args = process.argv.slice(2);
+  if (!args.includes('--relogin') && !args.includes('-r')) return;
+  const abs = path.resolve(MEMORY_CARD_FILE);
+  if (fs.existsSync(abs)) {
+    fs.unlinkSync(abs);
+    console.log(`[relogin] 已清除登录缓存 ${MEMORY_CARD_FILE}，将强制重新扫码登录。`);
+  } else {
+    console.log('[relogin] 未找到登录缓存文件，无需清除。');
+  }
+}
+
 async function main() {
+  handleRelogin();
+
   const configPath = process.env.CONFIG_PATH || 'config.json';
   const config = loadConfig(configPath);
 
@@ -41,6 +59,41 @@ async function main() {
   console.log(`RAG 知识库: ${rag ? '已启用' : '已禁用'}`);
   console.log('请用微信扫码登录。按 Ctrl+C 退出。');
   console.log('----------------------------------------');
+
+  let shuttingDown = false;
+  const shutdown = async (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\n[退出] 收到 ${signal}，正在正常登出以清除微信会话...`);
+
+    const forceExitTimer = setTimeout(() => {
+      console.warn('[退出] 清理超时，强制退出。');
+      process.exit(0);
+    }, 8000);
+
+    try {
+      if (bot.isLoggedIn) {
+        await bot.logout();
+        console.log('[退出] 已登出，微信端会话已清除。');
+      }
+    } catch (err) {
+      console.warn(`[退出] 登出异常（不影响退出）: ${err.message}`);
+    }
+    try {
+      await Promise.race([
+        bot.stop(),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    } catch (err) {
+      console.warn(`[退出] 停止异常: ${err.message}`);
+    }
+    clearTimeout(forceExitTimer);
+    console.log('[退出] 已安全退出。下次运行将要求重新扫码。');
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT (Ctrl+C)'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   await bot.start();
 }
