@@ -47,6 +47,14 @@
 - [x] 群白名单过滤、忽略机器人自身消息
 - [x] 实现 `src/ratelimit.js` 限流器
 
+## Phase 9: 天气与网络搜索指令
+
+- [x] 实现 `src/weather.js`：和风天气 API（geoapi 城市解析 + 实时天气）+ 单元测试
+- [x] 实现 `src/search.js`：Bing Web Search API + 单元测试
+- [x] handler 增加"天气 城市名"与"搜索 关键词"指令检测 + 测试
+- [x] 更新 `.env.example`（USER_QWEATHER_API_KEY / USER_BING_API_KEY）、README、启动配置
+- [x] 集成测试与手工验证
+
 ## Phase 8: 集成与验证
 
 - [x] 集成测试：mock Wechaty message 验证完整处理链

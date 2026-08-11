@@ -81,3 +81,25 @@
 1. WHEN 知识库检索过程中单个知识源读取失败, the 机器人 SHALL 跳过该知识源并继续处理其他知识源。
 2. WHEN 机器人连续收到大量消息, the 机器人 SHALL 对回复执行限流以避免被微信风控。
 3. WHEN 机器人启动, the 机器人 SHALL 输出当前加载的规则数量与知识库信息，便于管理员确认配置生效。
+
+### Requirement 7: 天气查询指令
+
+**User Story:** AS 群管理员, I want 群成员发送"天气 城市名"指令时机器人回复该城市实时天气, so that 群内无需跳出聊天即可获取天气信息。
+
+#### Acceptance Criteria
+
+1. WHEN 群成员发送以"天气"开头的文本消息, the 机器人 SHALL 解析出城市名并调用天气 API 查询实时天气。
+2. WHEN 天气 API 返回成功, the 机器人 SHALL 回复包含温度、体感温度、天气现象与湿度的天气信息。
+3. IF 城市名无法解析或天气 API 返回无结果, the 机器人 SHALL 回复未找到该城市天气的提示。
+4. IF 未配置天气 API Key, the 机器人 SHALL 回复功能未配置的提示。
+
+### Requirement 8: 网络搜索指令
+
+**User Story:** AS 群管理员, I want 群成员发送"搜索 关键词"指令时机器人回复网络搜索结果, so that 群内可直接获取最新网络信息。
+
+#### Acceptance Criteria
+
+1. WHEN 群成员发送以"搜索"开头的文本消息, the 机器人 SHALL 解析出搜索关键词并调用搜索 API。
+2. WHEN 搜索 API 返回结果, the 机器人 SHALL 回复按相关度排列的网页标题、链接与摘要。
+3. IF 搜索 API 无结果, the 机器人 SHALL 回复未搜索到相关内容的提示。
+4. IF 未配置搜索 API Key, the 机器人 SHALL 回复功能未配置的提示。

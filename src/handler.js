@@ -3,16 +3,70 @@ import { extractMentionQuery } from './mention.js';
 
 export const MESSAGE_TYPE_TEXT = 7;
 
+export function parseCommand(text) {
+  if (!text) return null;
+  const t = String(text).trim().replace(/^@[\u4e00-\u9fa5a-zA-Z0-9_\-]+\s*/, '').trim();
+
+  const weatherMatch = t.match(/^(天气|weather)\s+(.+)$/i);
+  if (weatherMatch && weatherMatch[2].trim()) {
+    return { type: 'weather', arg: weatherMatch[2].trim() };
+  }
+
+  const searchMatch = t.match(/^(搜索|搜一下|search)\s+(.+)$/i);
+  if (searchMatch && searchMatch[2].trim()) {
+    return { type: 'search', arg: searchMatch[2].trim() };
+  }
+
+  return null;
+}
+
 export class MessageHandler {
-  constructor({ config, rag, bot }) {
+  constructor({ config, rag, bot, weather, search }) {
     this.config = config;
     this.rag = rag || null;
     this.bot = bot;
+    this.weather = weather || null;
+    this.search = search || null;
     this.debug = !!process.env.BOT_DEBUG;
   }
 
   log(msg) {
     if (this.debug) console.log(`[DEBUG handler] ${msg}`);
+  }
+
+  async handleCommand(text) {
+    const cmd = parseCommand(text);
+    if (!cmd) return null;
+
+    if (cmd.type === 'weather') {
+      this.log(`指令: 天气 ${cmd.arg}`);
+      if (!this.weather || !this.weather.enabled) {
+        return '天气功能未配置：请在 .env 中设置 USER_QWEATHER_API_KEY（和风天气）。';
+      }
+      try {
+        const w = await this.weather.queryCityWeather(cmd.arg);
+        return this.weather.format(w);
+      } catch (err) {
+        console.error(`[天气查询异常] ${err.message}`);
+        return '天气查询失败，请稍后再试。';
+      }
+    }
+
+    if (cmd.type === 'search') {
+      this.log(`指令: 搜索 ${cmd.arg}`);
+      if (!this.search || !this.search.enabled) {
+        return '搜索功能未配置：请在 .env 中设置 USER_BING_API_KEY（Bing Web Search）。';
+      }
+      try {
+        const results = await this.search.search(cmd.arg);
+        return this.search.format(results);
+      } catch (err) {
+        console.error(`[搜索异常] ${err.message}`);
+        return '搜索失败，请稍后再试。';
+      }
+    }
+
+    return null;
   }
 
   async handle(message) {
@@ -54,6 +108,9 @@ export class MessageHandler {
       this.log('拦截: 空文本消息');
       return null;
     }
+
+    const cmdReply = await this.handleCommand(text);
+    if (cmdReply) return cmdReply;
 
     let mentioned = false;
     try {

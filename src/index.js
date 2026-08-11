@@ -5,6 +5,8 @@ import { loadConfig } from './config.js';
 import { buildKnowledge } from './kb/index.js';
 import { LLMClient } from './llm.js';
 import { RAG } from './rag.js';
+import { WeatherClient } from './weather.js';
+import { SearchClient } from './search.js';
 import { MessageHandler } from './handler.js';
 import { RateLimiter } from './ratelimit.js';
 import { createBot } from './bot.js';
@@ -48,7 +50,9 @@ async function main() {
     console.log('[知识库] 未配置知识库来源，跳过构建');
   }
 
-  const handler = new MessageHandler({ config, rag });
+  const weather = new WeatherClient();
+  const search = new SearchClient();
+  const handler = new MessageHandler({ config, rag, weather, search });
   const rateLimiter = new RateLimiter(config.rateLimit);
   const bot = await createBot({ config, handler, rateLimiter });
 
@@ -57,6 +61,8 @@ async function main() {
   console.log(`监听群: ${config.rooms.length ? config.rooms.join(', ') : '所有群'}`);
   console.log(`关键词规则: ${config.keywordRules.length} 条`);
   console.log(`RAG 知识库: ${rag ? '已启用' : '已禁用'}`);
+  console.log(`天气查询: ${weather.enabled ? '已启用' : '未配置 KEY（天气功能不可用）'}`);
+  console.log(`网络搜索: ${search.enabled ? '已启用' : '未配置 KEY（搜索功能不可用）'}`);
   console.log('请用微信扫码登录。按 Ctrl+C 退出。');
   console.log('----------------------------------------');
 
