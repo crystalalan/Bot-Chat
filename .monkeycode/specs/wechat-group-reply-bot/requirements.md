@@ -103,3 +103,15 @@
 2. WHEN 搜索 API 返回结果, the 机器人 SHALL 回复按相关度排列的网页标题、链接与摘要。
 3. IF 搜索 API 无结果, the 机器人 SHALL 回复未搜索到相关内容的提示。
 4. IF 未配置搜索 API Key, the 机器人 SHALL 回复功能未配置的提示。
+
+### Requirement 9: 对话聊天功能
+
+**User Story:** AS 群管理员, I want 群成员 @ 机器人提问时若知识库未命中则进行多轮闲聊对话, so that 机器人能自然聊天而非机械回复。
+
+#### Acceptance Criteria
+
+1. WHEN 群成员 @ 机器人并附上问题, the 机器人 SHALL 先尝试从知识库检索回答。
+2. IF 知识库未命中且聊天功能启用, the 机器人 SHALL 调用大模型进行多轮闲聊回复。
+3. WHEN 同一群内连续对话, the 机器人 SHALL 携带该群最近 N 条消息作为上下文（每群独立维护）。
+4. IF 未配置大模型 Key 或聊天配置关闭, the 机器人 SHALL 回退到原 @ 引导回复。
+5. WHEN 大模型调用异常, the 机器人 SHALL 回退到原 @ 引导回复并记录错误日志。

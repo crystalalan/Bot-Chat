@@ -55,6 +55,14 @@
 - [x] 更新 `.env.example`（USER_QWEATHER_API_KEY / USER_BING_API_KEY）、README、启动配置
 - [x] 集成测试与手工验证
 
+## Phase 10: 对话聊天功能
+
+- [x] 实现 `src/chat.js`：多轮上下文（每群独立 Map，截断最早消息）
+- [x] handler @ 处理链：知识库命中优先，未命中时进入闲聊
+- [x] 配置项 `chat`（enabled/historySize/systemPrompt）+ config.example.json
+- [x] 单元测试（上下文/截断/隔离/异常回退）+ 全量通过
+- [x] 更新 requirements.md（Requirement 9）、design.md（Chat 模块）、README
+
 ## Phase 8: 集成与验证
 
 - [x] 集成测试：mock Wechaty message 验证完整处理链

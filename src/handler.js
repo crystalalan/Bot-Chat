@@ -21,12 +21,13 @@ export function parseCommand(text) {
 }
 
 export class MessageHandler {
-  constructor({ config, rag, bot, weather, search }) {
+  constructor({ config, rag, bot, weather, search, chat }) {
     this.config = config;
     this.rag = rag || null;
     this.bot = bot;
     this.weather = weather || null;
     this.search = search || null;
+    this.chat = chat || null;
     this.debug = !!process.env.BOT_DEBUG;
   }
 
@@ -123,9 +124,22 @@ export class MessageHandler {
       this.log(`命中 @: 文本=${JSON.stringify(text)}`);
       const query = await extractMentionQuery(message);
       if (query) {
-        if (!this.rag) return this.config.mentionReply;
-        const { answer } = await this.rag.answer(query);
-        return answer;
+        if (this.rag) {
+          const { answer, hits } = await this.rag.answer(query);
+          if (hits && hits.length > 0) return answer;
+          if (this.chat && this.chat.enabled) {
+            this.log(`知识库未命中，进入闲聊: ${JSON.stringify(query)}`);
+            const chatReply = await this.chat.reply(topic, query);
+            if (chatReply) return chatReply;
+          }
+          return answer;
+        }
+        if (this.chat && this.chat.enabled) {
+          this.log(`无知识库，进入闲聊: ${JSON.stringify(query)}`);
+          const chatReply = await this.chat.reply(topic, query);
+          if (chatReply) return chatReply;
+        }
+        return this.config.mentionReply;
       }
       return this.config.mentionReply;
     }

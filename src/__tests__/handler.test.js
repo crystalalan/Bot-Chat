@@ -147,3 +147,42 @@ describe('MessageHandler 天气/搜索指令', () => {
     expect(await handler.handle(msg)).toContain('USER_BING_API_KEY');
   });
 });
+
+describe('MessageHandler 对话聊天', () => {
+  test('@ 且知识库命中时返回知识库答案，不进入闲聊', async () => {
+    const rag = { answer: async () => ({ answer: '知识库答案', hits: [{ score: 0.8 }] }) };
+    const chat = { enabled: true, reply: async () => '闲聊答案' };
+    const handler = new MessageHandler({ config: baseConfig, rag, chat });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 部署步骤' });
+    expect(await handler.handle(msg)).toBe('知识库答案');
+  });
+
+  test('@ 且知识库未命中时进入闲聊', async () => {
+    const rag = { answer: async () => ({ answer: '未找到', hits: [] }) };
+    const chat = { enabled: true, reply: async () => '闲聊答案' };
+    const handler = new MessageHandler({ config: baseConfig, rag, chat });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 今天天气不错' });
+    expect(await handler.handle(msg)).toBe('闲聊答案');
+  });
+
+  test('无知识库时 @ 直接进入闲聊', async () => {
+    const chat = { enabled: true, reply: async (topic, q) => `闲聊:${q}` };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, chat });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 随便聊聊' });
+    expect(await handler.handle(msg)).toBe('闲聊:随便聊聊');
+  });
+
+  test('闲聊未返回内容时回退 mentionReply', async () => {
+    const chat = { enabled: true, reply: async () => null };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, chat });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 随便聊聊' });
+    expect(await handler.handle(msg)).toBe(baseConfig.mentionReply);
+  });
+
+  test('聊天未启用时 @ 无知识库返回 mentionReply', async () => {
+    const chat = { enabled: false, reply: async () => '不应调用' };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, chat });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 随便聊聊' });
+    expect(await handler.handle(msg)).toBe(baseConfig.mentionReply);
+  });
+});

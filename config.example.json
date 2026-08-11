@@ -30,5 +30,10 @@
   "rateLimit": {
     "intervalMs": 60000,
     "maxRepliesPerWindow": 20
+  },
+  "chat": {
+    "enabled": true,
+    "historySize": 8,
+    "systemPrompt": "你是微信群聊中的智能助手。请用简洁、友好、口语化的中文回答群成员的问题。回答不宜过长。"
   }
 }

@@ -17,6 +17,10 @@ export const DEFAULT_CONFIG = {
     intervalMs: 60000,
     maxRepliesPerWindow: 20,
   },
+  chat: {
+    enabled: true,
+    historySize: 8,
+  },
 };
 
 function mergeDeep(base, override) {

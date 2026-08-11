@@ -78,22 +78,39 @@ graph TD
 6. ELSE IF 文本命中关键词规则 → 返回关键词回复
 7. ELSE → 结束（不回复）
 
-### 3. 天气查询模块 (Weather)
+@ 处理器内部逻辑：
+1. 提取 @ 后的提问文本（剥离 @名字）
+2. IF 有提问文本 → 先查 RAG 知识库
+3. IF 知识库命中（hits 非空）→ 返回知识库答案
+4. ELSE IF 聊天模块启用 → 调用大模型闲聊（携带该群多轮上下文）并回复
+5. ELSE → 返回 `noResultReply` / `mentionReply`
+6. IF 无提问文本 → 返回 `mentionReply`
 
-- 读取环境变量 `USER_QWEATHER_API_KEY`（和风天气 API Key）
-- 城市名解析：调用 `https://geoapi.qweather.com/v2/city/lookup?location=<城市名>&key=<KEY>` 获取城市 ID
-- 实时天气：调用 `https://devapi.qweather.com/v7/weather/now?location=<城市ID>&key=<KEY>`
+### 3. 对话聊天模块 (Chat)
+
+- 读取配置 `chat.enabled`、`chat.historySize`、`chat.systemPrompt`
+- 每群维护独立消息历史（Map<群名, [{role, content}]>），超出 `historySize` 时截断最早消息
+- 调用 `LLMClient.chat()`，构造 system 人设 + 历史上下文 + 当前问题
+- LLM 未配置或调用异常时返回 null，由 @ 处理器回退到原引导回复
+- 温度 0.8、最大 token 800，回复剥离后为空时返回 null
+
+### 4. 天气查询模块 (Weather)
+
+- 读取环境变量 `USER_QWEATHER_API_KEY` 与 `USER_QWEATHER_API_HOST`（和风天气 API Key 与个人 API Host，Host 在控制台「设置」获取，形如 `abc1234.def.qweatherapi.com`）
+- 城市名解析：调用 `https://{HOST}/geo/v2/city/lookup?location=<城市名>`（Header `X-QW-Api-Key`）获取城市 ID
+- 实时天气：调用 `https://{HOST}/v7/weather/now?location=<城市ID>`
+- 未配置 Host 时回退旧域名 `geoapi.qweather.com` / `devapi.qweather.com`（2026 年起逐步停服，仅兼容旧 Key）
 - 回复格式：`北京 当前天气：多云，温度 25℃，体感 26℃，湿度 60%`
 - 未配置 Key / 城市未找到 / API 失败时返回对应提示
 
-### 4. 网络搜索模块 (Search)
+### 5. 网络搜索模块 (Search)
 
 - 读取环境变量 `USER_BING_API_KEY`（Bing Web Search API Key）
 - 调用 `https://api.bing.microsoft.com/v7.0/search?q=<关键词>&count=<n>`，Header `Ocp-Apim-Subscription-Key`
 - 提取结果标题、URL、摘要，按相关度返回前 3 条
 - 未配置 Key / 无结果 / API 失败时返回对应提示
 
-### 5. 关键词规则匹配器 (RuleMatcher)
+### 6. 关键词规则匹配器 (RuleMatcher)
 
 ```typescript
 interface KeywordRule {
@@ -110,14 +127,14 @@ interface KeywordRule {
 - 按 `priority` 降序判定，命中优先级最高的规则即回复
 - 精确匹配：文本与关键词完全一致；包含匹配：文本包含任一关键词
 
-### 6. @ 机器人处理器 (MentionHandler)
+### 7. @ 机器人处理器 (MentionHandler)
 
 - `message.mentionSelf()` 为 true 时触发
 - 从消息文本中剥离 @ 提及部分，得到 `query`（`message.text()` 中 `@名字` 替换为空后的剩余内容，参考 `message.mention()` 与会话成员解析）
 - 若 query 非空 → 调用 RAG 模块检索并回复
 - 若 query 为空 → 回复配置中的 `mentionReply`（功能引导内容）
 
-### 7. RAG 知识库检索模块 (RAG)
+### 8. RAG 知识库检索模块 (RAG)
 
 输入：查询文本；输出：基于知识库的答案。
 
@@ -130,7 +147,7 @@ interface KeywordRule {
 4. 生成：将检索片段与查询拼接为 prompt，调用大模型生成答案
 5. 兜底：检索无结果时回复配置中的 `noResultReply` 提示
 
-### 8. 大模型客户端 (LLM Client)
+### 9. 大模型客户端 (LLM Client)
 
 - 读取环境变量 `USER_LLM_API_KEY`、`USER_LLM_BASE_URL`、`USER_LLM_MODEL`
 - 使用 OpenAI 兼容的 Chat Completions 接口，兼容国内易用服务商（DeepSeek、通义千问等），用户在 `.env` 中自行配置
@@ -138,7 +155,7 @@ interface KeywordRule {
 - 未配置 API Key 时：RAG 功能禁用，机器人仅保留关键词与 @ 引导回复能力，启动时输出警告
 - 知识库在机器人**启动时构建一次**，向量与文本块存储在**内存 + 本地 JSON 缓存文件**，无外部向量数据库依赖
 
-### 9. 配置管理器 (ConfigManager)
+### 10. 配置管理器 (ConfigManager)
 
 ```typescript
 interface BotConfig {
