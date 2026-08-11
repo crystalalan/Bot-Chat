@@ -7,6 +7,7 @@ import { LLMClient } from './llm.js';
 import { RAG } from './rag.js';
 import { WeatherClient } from './weather.js';
 import { SearchClient } from './search.js';
+import { ZodiacClient } from './zodiac.js';
 import { Chat } from './chat.js';
 import { MessageHandler } from './handler.js';
 import { RateLimiter } from './ratelimit.js';
@@ -53,19 +54,21 @@ async function main() {
 
   const weather = new WeatherClient();
   const search = new SearchClient();
+  const zodiac = new ZodiacClient();
   const chat = new Chat({ llm, config });
-  const handler = new MessageHandler({ config, rag, weather, search, chat });
+  const handler = new MessageHandler({ config, rag, weather, search, chat, zodiac });
   const rateLimiter = new RateLimiter(config.rateLimit);
   const bot = await createBot({ config, handler, rateLimiter });
 
   console.log('----------------------------------------');
   console.log('微信群聊自动回复机器人启动中...');
   console.log(`监听群: ${config.rooms.length ? config.rooms.join(', ') : '所有群'}`);
-  console.log(`关键词规则: ${config.keywordRules.length} 条`);
+  console.log(`关键词规则: ${config.keywordRules.length} 条（仅 @ 机器人时触发）`);
   console.log(`RAG 知识库: ${rag ? '已启用' : '已禁用'}`);
   console.log(`对话聊天: ${chat.enabled ? '已启用（@ 且知识库未命中时闲聊）' : '已禁用'}`);
   console.log(`天气查询: ${weather.enabled ? '已启用' : '未配置 KEY（天气功能不可用）'}`);
   console.log(`网络搜索: ${search.enabled ? '已启用' : '未配置 KEY（搜索功能不可用）'}`);
+  console.log(`星座运势: ${zodiac.enabled ? '已启用' : '未配置 KEY（星座功能不可用）'}`);
   console.log('请用微信扫码登录。按 Ctrl+C 退出。');
   console.log('----------------------------------------');
 

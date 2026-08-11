@@ -63,6 +63,14 @@
 - [x] 单元测试（上下文/截断/隔离/异常回退）+ 全量通过
 - [x] 更新 requirements.md（Requirement 9）、design.md（Chat 模块）、README
 
+## Phase 11: 关键词仅 @ 触发 + 星座运势
+
+- [x] 关键词规则改为仅在被 @ 时触发（未 @ 消息不再回复）
+- [x] 实现 `src/zodiac.js`：聚合数据星座接口 + 12 星座名校验 + 单元测试
+- [x] handler 增加"星座 星座名"指令检测 + 测试
+- [x] 更新 `.env.example`（USER_JUHE_API_KEY）、README、启动配置
+- [x] 更新 requirements.md（Requirement 10）、design.md（Zodiac 模块）、tasklist
+
 ## Phase 8: 集成与验证
 
 - [x] 集成测试：mock Wechaty message 验证完整处理链

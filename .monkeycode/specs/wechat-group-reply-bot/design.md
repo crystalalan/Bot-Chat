@@ -74,17 +74,18 @@ graph TD
 2. IF 消息来自机器人自身 → 忽略
 3. IF 文本以"天气"开头 → 天气模块处理
 4. IF 文本以"搜索"开头 → 搜索模块处理
-5. IF `await message.mentionSelf()` 为 true → 走 @ 处理器
-6. ELSE IF 文本命中关键词规则 → 返回关键词回复
-7. ELSE → 结束（不回复）
+5. IF 文本以"星座"/"运势"开头 → 星座模块处理
+6. IF `await message.mentionSelf()` 为 true → 走 @ 处理器
+7. ELSE → 结束（不回复，关键词规则不再对未 @ 消息触发）
 
 @ 处理器内部逻辑：
 1. 提取 @ 后的提问文本（剥离 @名字）
-2. IF 有提问文本 → 先查 RAG 知识库
-3. IF 知识库命中（hits 非空）→ 返回知识库答案
-4. ELSE IF 聊天模块启用 → 调用大模型闲聊（携带该群多轮上下文）并回复
-5. ELSE → 返回 `noResultReply` / `mentionReply`
-6. IF 无提问文本 → 返回 `mentionReply`
+2. 先用提问文本匹配关键词规则，命中 → 返回自定义回复
+3. IF 有提问文本且未命中关键词 → 先查 RAG 知识库
+4. IF 知识库命中（hits 非空）→ 返回知识库答案
+5. ELSE IF 聊天模块启用 → 调用大模型闲聊（携带该群多轮上下文）并回复
+6. ELSE → 返回 `noResultReply` / `mentionReply`
+7. IF 无提问文本 → 返回 `mentionReply`
 
 ### 3. 对话聊天模块 (Chat)
 
@@ -110,7 +111,15 @@ graph TD
 - 提取结果标题、URL、摘要，按相关度返回前 3 条
 - 未配置 Key / 无结果 / API 失败时返回对应提示
 
-### 6. 关键词规则匹配器 (RuleMatcher)
+### 6. 星座运势模块 (Zodiac)
+
+- 读取环境变量 `USER_JUHE_API_KEY`（聚合数据 API Key）
+- 调用 `http://web.juhe.cn:8080/constellation/getAll?key=<KEY>&consName=<星座名>&type=today`
+- 星座名支持"白羊座"或省略"座"（如"白羊"），12 星座枚举校验
+- 回复格式：`白羊座 今日运势（08月11日 星期二）` + 综合/爱情/事业/财运/健康 + 幸运数字/颜色/速配星座
+- 未配置 Key / 星座名不合法 / API 失败时返回对应提示
+
+### 7. 关键词规则匹配器 (RuleMatcher)
 
 ```typescript
 interface KeywordRule {
@@ -127,14 +136,14 @@ interface KeywordRule {
 - 按 `priority` 降序判定，命中优先级最高的规则即回复
 - 精确匹配：文本与关键词完全一致；包含匹配：文本包含任一关键词
 
-### 7. @ 机器人处理器 (MentionHandler)
+### 8. @ 机器人处理器 (MentionHandler)
 
 - `message.mentionSelf()` 为 true 时触发
 - 从消息文本中剥离 @ 提及部分，得到 `query`（`message.text()` 中 `@名字` 替换为空后的剩余内容，参考 `message.mention()` 与会话成员解析）
 - 若 query 非空 → 调用 RAG 模块检索并回复
 - 若 query 为空 → 回复配置中的 `mentionReply`（功能引导内容）
 
-### 8. RAG 知识库检索模块 (RAG)
+### 9. RAG 知识库检索模块 (RAG)
 
 输入：查询文本；输出：基于知识库的答案。
 
@@ -147,7 +156,7 @@ interface KeywordRule {
 4. 生成：将检索片段与查询拼接为 prompt，调用大模型生成答案
 5. 兜底：检索无结果时回复配置中的 `noResultReply` 提示
 
-### 9. 大模型客户端 (LLM Client)
+### 10. 大模型客户端 (LLM Client)
 
 - 读取环境变量 `USER_LLM_API_KEY`、`USER_LLM_BASE_URL`、`USER_LLM_MODEL`
 - 使用 OpenAI 兼容的 Chat Completions 接口，兼容国内易用服务商（DeepSeek、通义千问等），用户在 `.env` 中自行配置
@@ -155,7 +164,7 @@ interface KeywordRule {
 - 未配置 API Key 时：RAG 功能禁用，机器人仅保留关键词与 @ 引导回复能力，启动时输出警告
 - 知识库在机器人**启动时构建一次**，向量与文本块存储在**内存 + 本地 JSON 缓存文件**，无外部向量数据库依赖
 
-### 10. 配置管理器 (ConfigManager)
+### 11. 配置管理器 (ConfigManager)
 
 ```typescript
 interface BotConfig {

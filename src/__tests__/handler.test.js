@@ -34,9 +34,15 @@ describe('MessageHandler 完整处理链', () => {
     expect(await handler.handle(msg)).toBe('我在！请附上问题。');
   });
 
-  test('命中关键词返回自定义回复', async () => {
+  test('未 @ 时命中关键词也返回 null（关键词仅 @ 触发）', async () => {
     const handler = new MessageHandler({ config: baseConfig, rag: null });
     const msg = makeMessage({ text: '你好呀' });
+    expect(await handler.handle(msg)).toBeNull();
+  });
+
+  test('@ 机器人且命中关键词返回自定义回复', async () => {
+    const handler = new MessageHandler({ config: baseConfig, rag: null });
+    const msg = makeMessage({ mentioned: true, mentionNames: ['机器人'], text: '@机器人 你好呀' });
     expect(await handler.handle(msg)).toBe('你好！');
   });
 
@@ -82,6 +88,18 @@ describe('parseCommand', () => {
     expect(parseCommand('搜索 Node.js')).toEqual({ type: 'search', arg: 'Node.js' });
     expect(parseCommand('搜一下 天气API')).toEqual({ type: 'search', arg: '天气API' });
     expect(parseCommand('search wechaty')).toEqual({ type: 'search', arg: 'wechaty' });
+  });
+
+  test('识别星座运势指令', () => {
+    expect(parseCommand('星座 白羊座')).toEqual({ type: 'zodiac', arg: '白羊座' });
+    expect(parseCommand('星座 白羊')).toEqual({ type: 'zodiac', arg: '白羊' });
+    expect(parseCommand('运势 天秤座')).toEqual({ type: 'zodiac', arg: '天秤座' });
+    expect(parseCommand('今日星座 双鱼')).toEqual({ type: 'zodiac', arg: '双鱼' });
+  });
+
+  test('星座指令无参数返回 null', () => {
+    expect(parseCommand('星座')).toBeNull();
+    expect(parseCommand('运势')).toBeNull();
   });
 
   test('支持 @ 后带指令', () => {
@@ -145,6 +163,35 @@ describe('MessageHandler 天气/搜索指令', () => {
     const handler = new MessageHandler({ config: baseConfig, rag: null, search: { enabled: false } });
     const msg = makeMessage({ text: '搜索 wechaty' });
     expect(await handler.handle(msg)).toContain('USER_BING_API_KEY');
+  });
+
+  test('星座指令调用星座客户端', async () => {
+    const zodiac = {
+      enabled: true,
+      getDaily: async (s) => ({ name: s, all: '整体不错', love: '顺利', work: '努力', money: '一般', health: '良好', number: '5', color: '红', QFriend: '狮子座' }),
+      format: (d) => `${d.name}:${d.all}`,
+    };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, zodiac });
+    const msg = makeMessage({ text: '星座 白羊座' });
+    expect(await handler.handle(msg)).toBe('白羊座:整体不错');
+  });
+
+  test('星座未配置 Key 返回提示', async () => {
+    const handler = new MessageHandler({ config: baseConfig, rag: null, zodiac: { enabled: false } });
+    const msg = makeMessage({ text: '星座 白羊座' });
+    expect(await handler.handle(msg)).toContain('USER_JUHE_API_KEY');
+  });
+
+  test('星座查询异常返回失败提示', async () => {
+    const zodiac = {
+      enabled: true,
+      getDaily: async () => {
+        throw new Error('api down');
+      },
+    };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, zodiac });
+    const msg = makeMessage({ text: '星座 白羊座' });
+    expect(await handler.handle(msg)).toContain('星座运势查询失败');
   });
 });
 

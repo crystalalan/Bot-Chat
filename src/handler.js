@@ -17,17 +17,23 @@ export function parseCommand(text) {
     return { type: 'search', arg: searchMatch[2].trim() };
   }
 
+  const zodiacMatch = t.match(/^(星座|运势|今日星座)\s*(.*)$/i);
+  if (zodiacMatch && (zodiacMatch[2] || '').trim()) {
+    return { type: 'zodiac', arg: zodiacMatch[2].trim() };
+  }
+
   return null;
 }
 
 export class MessageHandler {
-  constructor({ config, rag, bot, weather, search, chat }) {
+  constructor({ config, rag, bot, weather, search, chat, zodiac }) {
     this.config = config;
     this.rag = rag || null;
     this.bot = bot;
     this.weather = weather || null;
     this.search = search || null;
     this.chat = chat || null;
+    this.zodiac = zodiac || null;
     this.debug = !!process.env.BOT_DEBUG;
   }
 
@@ -64,6 +70,20 @@ export class MessageHandler {
       } catch (err) {
         console.error(`[搜索异常] ${err.message}`);
         return '搜索失败，请稍后再试。';
+      }
+    }
+
+    if (cmd.type === 'zodiac') {
+      this.log(`指令: 星座 ${cmd.arg}`);
+      if (!this.zodiac || !this.zodiac.enabled) {
+        return '星座运势未配置：请在 .env 中设置 USER_JUHE_API_KEY（聚合数据，https://www.juhe.cn）。';
+      }
+      try {
+        const d = await this.zodiac.getDaily(cmd.arg);
+        return this.zodiac.format(d);
+      } catch (err) {
+        console.error(`[星座异常] ${err.message}`);
+        return '星座运势查询失败，请稍后再试。';
       }
     }
 
@@ -120,37 +140,38 @@ export class MessageHandler {
       mentioned = false;
     }
 
-    if (mentioned) {
-      this.log(`命中 @: 文本=${JSON.stringify(text)}`);
-      const query = await extractMentionQuery(message);
-      if (query) {
-        if (this.rag) {
-          const { answer, hits } = await this.rag.answer(query);
-          if (hits && hits.length > 0) return answer;
-          if (this.chat && this.chat.enabled) {
-            this.log(`知识库未命中，进入闲聊: ${JSON.stringify(query)}`);
-            const chatReply = await this.chat.reply(topic, query);
-            if (chatReply) return chatReply;
-          }
-          return answer;
-        }
-        if (this.chat && this.chat.enabled) {
-          this.log(`无知识库，进入闲聊: ${JSON.stringify(query)}`);
-          const chatReply = await this.chat.reply(topic, query);
-          if (chatReply) return chatReply;
-        }
-        return this.config.mentionReply;
-      }
-      return this.config.mentionReply;
+    if (!mentioned) {
+      this.log(`未 @ 机器人，跳过关键词与知识库处理: ${JSON.stringify(text)}`);
+      return null;
     }
 
-    const rule = matchRule(text, this.config.keywordRules || []);
+    this.log(`命中 @: 文本=${JSON.stringify(text)}`);
+    const query = await extractMentionQuery(message);
+
+    const rule = matchRule(query || text, this.config.keywordRules || []);
     if (rule) {
-      this.log(`命中关键词规则 "${rule.id}": ${JSON.stringify(text)}`);
+      this.log(`命中关键词规则 "${rule.id}": ${JSON.stringify(query || text)}`);
       return rule.reply;
     }
 
-    this.log(`未命中任何规则: ${JSON.stringify(text)}`);
-    return null;
+    if (query) {
+      if (this.rag) {
+        const { answer, hits } = await this.rag.answer(query);
+        if (hits && hits.length > 0) return answer;
+        if (this.chat && this.chat.enabled) {
+          this.log(`知识库未命中，进入闲聊: ${JSON.stringify(query)}`);
+          const chatReply = await this.chat.reply(topic, query);
+          if (chatReply) return chatReply;
+        }
+        return answer;
+      }
+      if (this.chat && this.chat.enabled) {
+        this.log(`无知识库，进入闲聊: ${JSON.stringify(query)}`);
+        const chatReply = await this.chat.reply(topic, query);
+        if (chatReply) return chatReply;
+      }
+      return this.config.mentionReply;
+    }
+    return this.config.mentionReply;
   }
 }
