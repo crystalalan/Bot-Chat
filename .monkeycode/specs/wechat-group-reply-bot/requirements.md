@@ -1,0 +1,83 @@
+# Requirements Document
+
+## Introduction
+
+本项目为 Bot-Chat 微信群聊自动回复机器人。机器人通过开源 Wechaty 框架接入个人微信，运行在本地命令行环境。机器人在群聊中监听消息，当命中用户自定义的关键词时回复自定义内容；当群成员在群聊中 @ 机器人时，机器人执行特定回复；当群成员提问且命中知识库时，机器人从知识库（本地文档 PDF/Word/文本、网站/在线页面）中检索相关内容并回复。
+
+## 技术选型
+
+- **开发框架**: Node.js + Wechaty
+- **微信接入协议**: web 协议（puppet-wechat），扫码登录
+- **知识库检索**: 大模型 RAG，用户自备大模型 API Key（通过 `USER_LLM_API_KEY` 等环境变量配置）
+
+## Glossary
+
+- **机器人（Bot）**: 通过 Wechaty 接入个人微信的自动回复程序，对群聊消息进行监听与回复。
+- **关键词规则（Keyword Rule）**: 用户定义的一组映射，包含触发关键词与对应的自定义回复内容。
+- **知识库（Knowledge Base）**: 机器人用于检索回复内容的数据源，包含本地文档与网站/在线页面两种形态。
+- **@ 机器人（Mention）**: 群成员在群聊消息中通过 @ 方式提及机器人的行为。
+- **检索（Retrieval）**: 从知识库中查找与用户提问相关的内容并生成回复的过程。
+
+## Requirements
+
+### Requirement 1: 群聊消息监听
+
+**User Story:** AS 群管理员, I want 机器人持续监听指定群聊的消息, so that 群聊中的每条消息都能被机器人感知并处理。
+
+#### Acceptance Criteria
+
+1. WHEN 机器人启动成功, the 机器人 SHALL 开始监听配置中指定的微信群聊会话。
+2. WHEN 群聊中出现任意新消息, the 机器人 SHALL 判定该消息是否触发回复条件。
+3. IF 微信登录失败或会话过期, the 机器人 SHALL 输出可读的错误日志并停止运行。
+
+### Requirement 2: 关键词自动回复
+
+**User Story:** AS 群管理员, I want 针对特定关键词配置自定义回复内容, so that 群成员在群聊中发送含关键词的消息时能自动收到自定义回复。
+
+#### Acceptance Criteria
+
+1. WHEN 群成员发送的消息命中任一已配置关键词, the 机器人 SHALL 在群聊中回复该关键词对应的自定义内容。
+2. WHEN 用户配置关键词规则, the 机器人 SHALL 支持精确匹配与包含匹配两种模式。
+3. WHEN 一条消息命中多条关键词规则, the 机器人 SHALL 按规则配置的优先级回复优先级最高的规则。
+4. WHEN 用户修改或新增关键词规则, the 机器人 SHALL 在下次消息触发时使用更新后的规则。
+
+### Requirement 3: @ 机器人特定回复
+
+**User Story:** AS 群管理员, I want 群成员在群聊中 @ 机器人时得到特定回复, so that 群成员知道如何与机器人交互并触发特定能力。
+
+#### Acceptance Criteria
+
+1. WHEN 群成员在群聊消息中 @ 机器人, the 机器人 SHALL 回复预设的引导性内容。
+2. WHEN 群成员 @ 机器人并附带提问内容, the 机器人 SHALL 将附带内容作为查询条件进行知识库检索。
+3. WHEN 群成员 @ 机器人但未附带提问内容, the 机器人 SHALL 回复机器人的功能说明与使用引导。
+
+### Requirement 4: 知识库检索回复
+
+**User Story:** AS 群管理员, I want 机器人能从知识库检索并回复, so that 群成员的问题能从本地文档与网站中获得准确答案。
+
+#### Acceptance Criteria
+
+1. WHEN 机器人的配置指定了本地文档知识库, the 机器人 SHALL 解析文档（PDF/Word/纯文本）中的内容用于检索。
+2. WHEN 机器人的配置指定了网站/在线页面知识库, the 机器人 SHALL 抓取页面文本内容并纳入检索范围。
+3. WHEN 群成员提问并触发知识库检索, the 机器人 SHALL 从知识库中检索出相关内容并生成回复。
+4. IF 知识库中未检索到与问题相关的内容, the 机器人 SHALL 回复未找到相关内容的提示信息。
+
+### Requirement 5: 回复内容与知识库的自定义管理
+
+**User Story:** AS 群管理员, I want 通过配置文件自定义回复内容与知识库来源, so that 无需修改代码即可调整机器人行为。
+
+#### Acceptance Criteria
+
+1. WHEN 用户需要调整回复内容, the 机器人 SHALL 支持通过配置文件修改关键词规则、自定义回复与 @ 回复内容。
+2. WHEN 用户需要调整知识库, the 机器人 SHALL 支持通过配置文件指定本地文档路径与网站 URL 列表。
+3. WHEN 配置文件格式错误, the 机器人 SHALL 输出明确的错误信息并拒绝启动。
+
+### Requirement 6: 运行与异常处理
+
+**User Story:** AS 群管理员, I want 机器人稳定运行并具备基本容错, so that 单项异常不会导致机器人整体崩溃。
+
+#### Acceptance Criteria
+
+1. WHEN 知识库检索过程中单个知识源读取失败, the 机器人 SHALL 跳过该知识源并继续处理其他知识源。
+2. WHEN 机器人连续收到大量消息, the 机器人 SHALL 对回复执行限流以避免被微信风控。
+3. WHEN 机器人启动, the 机器人 SHALL 输出当前加载的规则数量与知识库信息，便于管理员确认配置生效。
