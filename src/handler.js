@@ -41,7 +41,7 @@ export class MessageHandler {
     if (cmd.type === 'weather') {
       this.log(`指令: 天气 ${cmd.arg}`);
       if (!this.weather || !this.weather.enabled) {
-        return '天气功能未配置：请在 .env 中设置 USER_QWEATHER_API_KEY（和风天气）。';
+        return '天气功能未配置：请在 .env 中设置 USER_QWEATHER_API_KEY 与 USER_QWEATHER_API_HOST（和风天气控制台可查）。';
       }
       try {
         const w = await this.weather.queryCityWeather(cmd.arg);

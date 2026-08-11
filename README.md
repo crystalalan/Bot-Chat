@@ -42,6 +42,7 @@ cp .env.example .env
 | 变量 | 说明 |
 |------|------|
 | `USER_QWEATHER_API_KEY` | 和风天气 Key（https://console.qweather.com 免费申请），启用"天气 城市名"指令 |
+| `USER_QWEATHER_API_HOST` | 和风天气 API Host，在控制台「设置」查看（如 `abc1234.def.qweatherapi.com`），必填。2026 年起旧域名已停服 |
 | `USER_BING_API_KEY` | Bing Web Search Key（Azure 门户申请），启用"搜索 关键词"指令 |
 
 ### 3. 机器人配置

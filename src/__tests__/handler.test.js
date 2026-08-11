@@ -115,6 +115,7 @@ describe('MessageHandler 天气/搜索指令', () => {
     const handler = new MessageHandler({ config: baseConfig, rag: null, weather: { enabled: false } });
     const msg = makeMessage({ text: '天气 北京' });
     expect(await handler.handle(msg)).toContain('USER_QWEATHER_API_KEY');
+    expect(await handler.handle(msg)).toContain('USER_QWEATHER_API_HOST');
   });
 
   test('天气查询异常返回失败提示', async () => {
