@@ -71,3 +71,59 @@ describe('ZodiacClient', () => {
     expect(client.format(null)).toContain('未找到该星座');
   });
 });
+
+describe('ZodiacClient 返回结构兼容', () => {
+  const flatPayload = {
+    name: '狮子座',
+    date: '08月11日',
+    all: '89',
+    love: '80',
+    work: '85',
+    money: '84',
+    health: '90',
+    number: 8,
+    color: '古铜色',
+    QFriend: '处女座',
+  };
+
+  function mockFetch(jsonResult) {
+    global.fetch = async () => ({ ok: true, json: async () => jsonResult });
+  }
+
+  afterEach(() => {
+    delete process.env.USER_JUHE_API_KEY;
+    delete global.fetch;
+  });
+
+  test('兼容扁平结构（error_code 与数据同层，无 result）', async () => {
+    process.env.USER_JUHE_API_KEY = 'fake';
+    mockFetch({ ...flatPayload, error_code: 0 });
+    const client = new ZodiacClient();
+    const d = await client.getDaily('狮子座');
+    expect(d.name).toBe('狮子座');
+    expect(d.all).toBe('89');
+  });
+
+  test('兼容 result 包裹结构', async () => {
+    process.env.USER_JUHE_API_KEY = 'fake';
+    mockFetch({ error_code: 0, result: { ...flatPayload } });
+    const client = new ZodiacClient();
+    const d = await client.getDaily('狮子座');
+    expect(d.name).toBe('狮子座');
+    expect(d.love).toBe('80');
+  });
+
+  test('error_code 非 0 时抛出明确错误', async () => {
+    process.env.USER_JUHE_API_KEY = 'fake';
+    mockFetch({ error_code: 10001, reason: 'KEY ERROR!', result: [] });
+    const client = new ZodiacClient();
+    await expect(client.getDaily('狮子座')).rejects.toThrow(/10001/);
+  });
+
+  test('成功但无 name 字段时返回 null', async () => {
+    process.env.USER_JUHE_API_KEY = 'fake';
+    mockFetch({ error_code: 0, reason: 'success', result: [] });
+    const client = new ZodiacClient();
+    expect(await client.getDaily('狮子座')).toBeNull();
+  });
+});

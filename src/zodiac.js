@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-const API_URL = 'http://web.juhe.cn:8080/constellation/getAll';
+const API_URL = 'https://web.juhe.cn/constellation/getAll';
 
 export const ZODIAC_SIGNS = [
   '白羊座', '金牛座', '双子座', '巨蟹座',
@@ -30,10 +30,14 @@ export class ZodiacClient {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`星座查询失败 HTTP ${res.status}`);
     const data = await res.json();
-    if (data.error_code !== 0 || !data.result) {
+    if (data.error_code !== 0 && data.error_code !== '0') {
       throw new Error(`聚合数据返回错误码 ${data.error_code}: ${data.reason || ''}`);
     }
-    return data.result;
+    const payload = data.result && typeof data.result === 'object' && !Array.isArray(data.result)
+      ? data.result
+      : data;
+    if (!payload || typeof payload !== 'object' || !payload.name) return null;
+    return payload;
   }
 
   format(d) {
