@@ -1,0 +1,34 @@
+{
+  "rooms": ["测试群"],
+  "keywordRules": [
+    {
+      "id": "greeting",
+      "keywords": ["你好", "hello", "hi"],
+      "reply": "你好！我是群内智能助手，有什么可以帮你？",
+      "mode": "contains",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "id": "help",
+      "keywords": ["帮助", "help", "功能"],
+      "reply": "你可以直接 @ 我并附上问题，我会从知识库中检索回答。也可以发送关键词触发自动回复。",
+      "mode": "contains",
+      "priority": 2,
+      "enabled": true
+    }
+  ],
+  "mentionReply": "我在！你可以 @ 我并附上问题，我会尽力从知识库中为你找到答案。例如：@机器人 项目的部署步骤是什么？",
+  "noResultReply": "抱歉，我在知识库中没有找到相关内容。你可以换个说法试试，或联系管理员补充资料。",
+  "rag": {
+    "docs": ["knowledge/"],
+    "sites": [],
+    "topK": 3,
+    "chunkSize": 800,
+    "chunkOverlap": 100
+  },
+  "rateLimit": {
+    "intervalMs": 60000,
+    "maxRepliesPerWindow": 20
+  }
+}
