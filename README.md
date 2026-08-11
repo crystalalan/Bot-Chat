@@ -98,10 +98,6 @@ npm start -- --relogin
 
 该命令会清除本地登录缓存并重新要求扫码。也可直接删除 `bot-chat.memory-card.json` 后运行 `npm start`。
 
-## 持续运行（电脑关机后 bot 不中断）
-
-把项目部署到云服务器或家里常开设备（树莓派/旧手机等），配合 pm2 守护与开机自启，详见 [docs/DEPLOY.md](当前工作区/docs/DEPLOY.md)。
-
 ## 开发与测试
 
 ```bash
