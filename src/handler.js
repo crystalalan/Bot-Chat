@@ -1,5 +1,6 @@
 import { matchRule } from './rules.js';
 import { extractMentionQuery } from './mention.js';
+import { matchGacha } from './gacha.js';
 
 export const MESSAGE_TYPE_TEXT = 7;
 
@@ -147,6 +148,12 @@ export class MessageHandler {
 
     this.log(`命中 @: 文本=${JSON.stringify(text)}`);
     const query = await extractMentionQuery(message);
+
+    const gachaReply = matchGacha(query || text, this.config.gacha);
+    if (gachaReply) {
+      this.log(`命中抽卡: ${JSON.stringify(query || text)}`);
+      return gachaReply;
+    }
 
     const rule = matchRule(query || text, this.config.keywordRules || []);
     if (rule) {

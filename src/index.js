@@ -69,6 +69,8 @@ async function main() {
   console.log(`天气查询: ${weather.enabled ? '已启用' : '未配置 KEY（天气功能不可用）'}`);
   console.log(`网络搜索: ${search.enabled ? '已启用' : '未配置 KEY（搜索功能不可用）'}`);
   console.log(`星座运势: ${zodiac.enabled ? '已启用' : '未配置 KEY（星座功能不可用）'}`);
+  const gachaReplies = (config.gacha?.replies || []).length;
+  console.log(`抽卡回复: ${gachaReplies > 0 ? `已启用（${gachaReplies} 条话术）` : '未配置话术（抽卡功能不可用）'}`);
   console.log('请用微信扫码登录。按 Ctrl+C 退出。');
   console.log('----------------------------------------');
 

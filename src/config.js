@@ -21,6 +21,10 @@ export const DEFAULT_CONFIG = {
     enabled: true,
     historySize: 8,
   },
+  gacha: {
+    keywords: ['抽卡'],
+    replies: [],
+  },
 };
 
 function mergeDeep(base, override) {
@@ -64,6 +68,14 @@ function validate(config) {
   if (config.rag !== undefined) {
     if (config.rag.docs !== undefined && !Array.isArray(config.rag.docs)) throw new Error('rag.docs 必须是数组');
     if (config.rag.sites !== undefined && !Array.isArray(config.rag.sites)) throw new Error('rag.sites 必须是数组');
+  }
+  if (config.gacha !== undefined) {
+    if (config.gacha.keywords !== undefined && !Array.isArray(config.gacha.keywords)) {
+      throw new Error('gacha.keywords 必须是字符串数组');
+    }
+    if (config.gacha.replies !== undefined && !Array.isArray(config.gacha.replies)) {
+      throw new Error('gacha.replies 必须是字符串数组');
+    }
   }
   return true;
 }

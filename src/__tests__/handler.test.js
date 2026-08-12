@@ -195,6 +195,46 @@ describe('MessageHandler 天气/搜索指令', () => {
   });
 });
 
+describe('MessageHandler 抽卡', () => {
+  test('@ 并提到抽卡时返回话术列表中的一项', async () => {
+    const config = {
+      ...baseConfig,
+      gacha: { keywords: ['抽卡'], replies: ['你很棒', '你今天非常漂亮'] },
+    };
+    const handler = new MessageHandler({ config, rag: null });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 抽卡' });
+    const reply = await handler.handle(msg);
+    expect(['你很棒', '你今天非常漂亮']).toContain(reply);
+  });
+
+  test('未 @ 时提到抽卡不触发', async () => {
+    const config = {
+      ...baseConfig,
+      gacha: { keywords: ['抽卡'], replies: ['你很棒'] },
+    };
+    const handler = new MessageHandler({ config, rag: null });
+    const msg = makeMessage({ text: '抽卡' });
+    expect(await handler.handle(msg)).toBeNull();
+  });
+
+  test('未配置话术时抽卡不触发', async () => {
+    const config = { ...baseConfig, gacha: { keywords: ['抽卡'], replies: [] } };
+    const handler = new MessageHandler({ config, rag: null });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 抽卡' });
+    expect(await handler.handle(msg)).toBe(baseConfig.mentionReply);
+  });
+
+  test('提到抽卡但未命中关键词列表时不触发', async () => {
+    const config = {
+      ...baseConfig,
+      gacha: { keywords: ['抽一张'], replies: ['你很棒'] },
+    };
+    const handler = new MessageHandler({ config, rag: null });
+    const msg = makeMessage({ mentioned: true, text: '@机器人 抽卡' });
+    expect(await handler.handle(msg)).toBe(baseConfig.mentionReply);
+  });
+});
+
 describe('MessageHandler 对话聊天', () => {
   test('@ 且知识库命中时返回知识库答案，不进入闲聊', async () => {
     const rag = { answer: async () => ({ answer: '知识库答案', hits: [{ score: 0.8 }] }) };
