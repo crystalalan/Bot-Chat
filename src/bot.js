@@ -50,9 +50,19 @@ export async function createBot({ config, handler, rateLimiter }) {
           return;
         }
         const room = message.room();
-        if (room) await room.say(reply);
-        else await message.say(reply);
-        if (debug) console.log(`[DEBUG 已回复] ${JSON.stringify(reply)}`);
+        let mention = null;
+        try {
+          mention = message.talker();
+        } catch {
+          mention = null;
+        }
+        if (room) {
+          if (mention) await room.say(reply, mention);
+          else await room.say(reply);
+        } else {
+          await message.say(reply);
+        }
+        if (debug) console.log(`[DEBUG 已回复] ${JSON.stringify(reply)} @${mention ? mention.name() : '-'}`);
       } else if (debug) {
         console.log('[DEBUG 未回复] handler 返回 null（未命中或已被过滤）');
       }
