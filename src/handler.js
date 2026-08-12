@@ -1,6 +1,7 @@
 import { matchRule } from './rules.js';
 import { extractMentionQuery } from './mention.js';
 import { matchGacha } from './gacha.js';
+import { parseWeatherArg } from './weather.js';
 
 export const MESSAGE_TYPE_TEXT = 7;
 
@@ -9,8 +10,9 @@ export function parseCommand(text) {
   const t = String(text).trim().replace(/^@[\u4e00-\u9fa5a-zA-Z0-9_\-]+\s*/, '').trim();
 
   const weatherMatch = t.match(/^(天气|weather)\s+(.+)$/i);
-  if (weatherMatch && weatherMatch[2].trim()) {
-    return { type: 'weather', arg: weatherMatch[2].trim() };
+  if (weatherMatch) {
+    const parsed = parseWeatherArg(weatherMatch[2]);
+    if (parsed) return parsed;
   }
 
   const searchMatch = t.match(/^(搜索|搜一下|search)\s+(.+)$/i);
@@ -52,6 +54,10 @@ export class MessageHandler {
         return '天气功能未配置：请在 .env 中设置 USER_QWEATHER_API_KEY 与 USER_QWEATHER_API_HOST（和风天气控制台可查）。';
       }
       try {
+        if (cmd.days && cmd.days > 0) {
+          const f = await this.weather.queryCityForecast(cmd.arg, cmd.days, cmd.offset || 0);
+          return this.weather.formatForecast(f);
+        }
         const w = await this.weather.queryCityWeather(cmd.arg);
         return this.weather.format(w);
       } catch (err) {

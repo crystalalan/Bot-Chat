@@ -84,6 +84,22 @@ describe('parseCommand', () => {
     expect(parseCommand('weather beijing')).toEqual({ type: 'weather', arg: 'beijing' });
   });
 
+  test('识别天气预报指令（明天/后天/N天）', () => {
+    expect(parseCommand('天气 北京 明天')).toEqual({ type: 'weather', arg: '北京', days: 1, offset: 1 });
+    expect(parseCommand('天气 北京 后天')).toEqual({ type: 'weather', arg: '北京', days: 1, offset: 2 });
+    expect(parseCommand('天气 北京 3天')).toEqual({ type: 'weather', arg: '北京', days: 3, offset: 0 });
+    expect(parseCommand('天气 北京 未来5天')).toEqual({ type: 'weather', arg: '北京', days: 5, offset: 0 });
+  });
+
+  test('天气指令后跟纯数字天数', () => {
+    expect(parseCommand('天气 上海 7')).toEqual({ type: 'weather', arg: '上海', days: 7, offset: 0 });
+  });
+
+  test('天气指令预报无城市名返回 null', () => {
+    expect(parseCommand('天气 明天')).toBeNull();
+    expect(parseCommand('天气 3天')).toBeNull();
+  });
+
   test('识别搜索指令', () => {
     expect(parseCommand('搜索 Node.js')).toEqual({ type: 'search', arg: 'Node.js' });
     expect(parseCommand('搜一下 天气API')).toEqual({ type: 'search', arg: '天气API' });
@@ -146,6 +162,17 @@ describe('MessageHandler 天气/搜索指令', () => {
     const handler = new MessageHandler({ config: baseConfig, rag: null, weather });
     const msg = makeMessage({ text: '天气 北京' });
     expect(await handler.handle(msg)).toContain('天气查询失败');
+  });
+
+  test('天气预报指令调用预报客户端', async () => {
+    const weather = {
+      enabled: true,
+      queryCityForecast: async (city, days) => ({ cityName: city, days: [{ fxDate: '2026-08-13', textDay: '晴', tempMin: '20', tempMax: '30' }] }),
+      formatForecast: (f) => `预报:${f.cityName}:${f.days.length}天`,
+    };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, weather });
+    const msg = makeMessage({ text: '天气 北京 3天' });
+    expect(await handler.handle(msg)).toBe('预报:北京:1天');
   });
 
   test('搜索指令调用搜索客户端', async () => {
