@@ -71,9 +71,17 @@ export function parseTodoCommand(text) {
   const listMatch = t.match(/^(查看|列出|查询)\s*待办$/);
   if (listMatch) return { action: 'list' };
 
-  const opMatch = t.match(/^(完成|删除|移除)\s*(个人|团体)?\s*待办\s*[:#]?\s*(\d+)$/);
+  const opMatch = t.match(/^(完成|删除|移除)\s*(个人|团体)?\s*待办\s*[:#]?\s*(.+)$/);
   if (opMatch) {
-    return { action: opMatch[1] === '完成' ? 'done' : 'remove', scope: opMatch[2] ? SCOPE_MAP[opMatch[2]] : 'personal', seq: parseInt(opMatch[3], 10) };
+    const action = opMatch[1] === '完成' ? 'done' : 'remove';
+    const scope = opMatch[2] ? SCOPE_MAP[opMatch[2]] : 'personal';
+    const seqs = String(opMatch[3])
+      .replace(/[，、]/g, ',')
+      .split(/[\s,]+/)
+      .map((s) => parseInt(s, 10))
+      .filter((n) => Number.isInteger(n) && n >= 1);
+    if (seqs.length === 0) return null;
+    return { action, scope, seqs, seq: seqs[0] };
   }
 
   return null;
@@ -193,6 +201,21 @@ export class TodoManager {
     this.todos = this.todos.filter((t) => t.id !== todo.id);
     this._save();
     return todo;
+  }
+
+  removeMany(roomId, scope, seqs) {
+    const list = this.list(roomId, scope);
+    const unique = [...new Set(seqs.map((n) => Number(n)))].sort((a, b) => a - b);
+    const targets = [];
+    for (const seq of unique) {
+      const todo = list[seq - 1];
+      if (todo) targets.push(todo);
+    }
+    if (targets.length === 0) return [];
+    const ids = new Set(targets.map((t) => t.id));
+    this.todos = this.todos.filter((t) => !ids.has(t.id));
+    this._save();
+    return targets;
   }
 
   formatList(roomId) {

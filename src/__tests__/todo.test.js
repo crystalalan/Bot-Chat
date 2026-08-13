@@ -97,9 +97,18 @@ describe('parseTodoCommand', () => {
 
   test('解析查看/完成/删除待办', () => {
     expect(parseTodoCommand('查看待办')).toEqual({ action: 'list' });
-    expect(parseTodoCommand('完成待办 1')).toEqual({ action: 'done', scope: 'personal', seq: 1 });
-    expect(parseTodoCommand('完成团体待办 2')).toEqual({ action: 'done', scope: 'group', seq: 2 });
-    expect(parseTodoCommand('删除待办 3')).toEqual({ action: 'remove', scope: 'personal', seq: 3 });
+    expect(parseTodoCommand('完成待办 1')).toEqual({ action: 'done', scope: 'personal', seqs: [1], seq: 1 });
+    expect(parseTodoCommand('完成团体待办 2')).toEqual({ action: 'done', scope: 'group', seqs: [2], seq: 2 });
+    expect(parseTodoCommand('删除待办 3')).toEqual({ action: 'remove', scope: 'personal', seqs: [3], seq: 3 });
+  });
+
+  test('解析批量删除待办（空格/逗号/顿号分隔）', () => {
+    expect(parseTodoCommand('删除待办 1 3 5')).toEqual({ action: 'remove', scope: 'personal', seqs: [1, 3, 5], seq: 1 });
+    expect(parseTodoCommand('删除待办 1,3,5')).toEqual({ action: 'remove', scope: 'personal', seqs: [1, 3, 5], seq: 1 });
+    expect(parseTodoCommand('删除待办 1，3，5')).toEqual({ action: 'remove', scope: 'personal', seqs: [1, 3, 5], seq: 1 });
+    expect(parseTodoCommand('删除待办 1、3、5')).toEqual({ action: 'remove', scope: 'personal', seqs: [1, 3, 5], seq: 1 });
+    expect(parseTodoCommand('删除团体待办 2 4')).toEqual({ action: 'remove', scope: 'group', seqs: [2, 4], seq: 2 });
+    expect(parseTodoCommand('移除待办 1 2')).toEqual({ action: 'remove', scope: 'personal', seqs: [1, 2], seq: 1 });
   });
 
   test('非待办文本返回 null', () => {
@@ -127,6 +136,42 @@ describe('TodoManager', () => {
     expect(removed.content).toBe('开会');
     expect(mgr.list('r1').length).toBe(0);
     fs.unlinkSync(file);
+  });
+
+  test('批量删除多个待办', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const creator = makeContact('u1', '张三');
+    mgr.add({ scope: 'personal', content: '待办A', remindAt: null, roomId: 'r1', creator });
+    mgr.add({ scope: 'personal', content: '待办B', remindAt: null, roomId: 'r1', creator });
+    mgr.add({ scope: 'personal', content: '待办C', remindAt: null, roomId: 'r1', creator });
+    mgr.add({ scope: 'personal', content: '待办D', remindAt: null, roomId: 'r1', creator });
+    const removed = mgr.removeMany('r1', 'personal', [1, 3]);
+    expect(removed.map((t) => t.content)).toEqual(['待办A', '待办C']);
+    const rest = mgr.list('r1', 'personal').map((t) => t.content);
+    expect(rest).toEqual(['待办B', '待办D']);
+    fs.unlinkSync(file);
+  });
+
+  test('批量删除支持乱序与重复序号，越界序号忽略', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const creator = makeContact('u1', '张三');
+    mgr.add({ scope: 'personal', content: '待办A', remindAt: null, roomId: 'r1', creator });
+    mgr.add({ scope: 'personal', content: '待办B', remindAt: null, roomId: 'r1', creator });
+    mgr.add({ scope: 'personal', content: '待办C', remindAt: null, roomId: 'r1', creator });
+    const removed = mgr.removeMany('r1', 'personal', [3, 1, 1, 99]);
+    expect(removed.map((t) => t.content)).toEqual(['待办A', '待办C']);
+    expect(mgr.list('r1', 'personal').map((t) => t.content)).toEqual(['待办B']);
+    fs.unlinkSync(file);
+  });
+
+  test('批量删除不存在的序号返回空数组且不报错', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const removed = mgr.removeMany('r1', 'personal', [1, 2]);
+    expect(removed).toEqual([]);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
   });
 
   test('持久化：重启后恢复待办', () => {

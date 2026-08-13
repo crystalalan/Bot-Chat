@@ -176,9 +176,11 @@ export class MessageHandler {
     }
 
     if (cmd.action === 'remove') {
-      const todo = this.todo.remove(roomId, cmd.scope, cmd.seq);
-      if (!todo) return '未找到对应序号的待办。';
-      return `已删除待办：${todo.content}`;
+      const seqs = cmd.seqs && cmd.seqs.length > 0 ? cmd.seqs : [cmd.seq];
+      const removed = this.todo.removeMany(roomId, cmd.scope, seqs);
+      if (!removed || removed.length === 0) return '未找到对应序号的待办。';
+      const names = removed.map((t) => t.content).join('、');
+      return removed.length === 1 ? `已删除待办：${names}` : `已删除 ${removed.length} 条待办：${names}`;
     }
 
     return null;

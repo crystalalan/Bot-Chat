@@ -272,6 +272,11 @@ describe('MessageHandler 待办', () => {
       formatList: () => '当前群没有未完成的待办。',
       markDone: (roomId, scope, seq) => (seq === 1 ? { content: '交周报' } : null),
       remove: (roomId, scope, seq) => (seq === 1 ? { content: '交周报' } : null),
+      removeMany: (roomId, scope, seqs) => {
+        const all = [{ content: '交周报' }, { content: '开会' }, { content: '值班' }];
+        const removed = seqs.map((s) => all[s - 1]).filter(Boolean);
+        return removed;
+      },
     };
   }
 
@@ -345,6 +350,24 @@ describe('MessageHandler 待办', () => {
     const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
     const msg = todoMessage({ text: '@机器人 删除待办 1' });
     expect(await handler.handle(msg)).toBe('已删除待办：交周报');
+  });
+
+  test('@ 批量删除待办 1 3', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '@机器人 删除待办 1 3' });
+    expect(await handler.handle(msg)).toBe('已删除 2 条待办：交周报、值班');
+  });
+
+  test('@ 批量删除无匹配序号返回提示', async () => {
+    const todo = {
+      add: () => ({ id: 't1' }),
+      formatAdd: () => 'ok',
+      removeMany: () => [],
+    };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '@机器人 删除待办 9 10' });
+    expect(await handler.handle(msg)).toBe('未找到对应序号的待办。');
   });
 
   test('待办未配置时返回提示', async () => {
