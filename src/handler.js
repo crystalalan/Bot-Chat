@@ -123,7 +123,18 @@ export class MessageHandler {
       contacts = [];
     }
     const selfId = await this._botSelfId();
-    return contacts.filter((c) => c && c.id && c.id !== selfId);
+    return contacts.filter((c) => {
+      if (!c || !c.id) return false;
+      if (c.self && typeof c.self === 'function') {
+        try {
+          if (c.self()) return false;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (selfId && c.id === selfId) return false;
+      return true;
+    });
   }
 
   async handleTodo(cmd, message, room, topic) {

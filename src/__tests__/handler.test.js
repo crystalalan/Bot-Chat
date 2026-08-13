@@ -300,6 +300,25 @@ describe('MessageHandler 待办', () => {
     expect(todo.add).toBeDefined();
   });
 
+  test('团体待办排除 bot 自身（mentionList 中含 bot 与 self() 为 true 的成员）', async () => {
+    const captured = {};
+    const todo = {
+      add: (args) => { captured.args = args; return { ...args, id: 't1' }; },
+      formatAdd: () => 'ok',
+    };
+    const botContact = { id: 'bot-id', name: () => '机器人', self: () => true };
+    const wang = { id: 'u3', name: () => '王五', self: () => false };
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo, bot: { userSelf: () => ({ id: 'bot-id' }) } });
+    const msg = todoMessage({
+      text: '@机器人 添加团体待办 明天9点 值班 @王五',
+      talkerId: 'u1',
+      talkerName: '张三',
+      mentions: [botContact, wang],
+    });
+    await handler.handle(msg);
+    expect(captured.args.participants.map((p) => p.id)).toEqual(['u3']);
+  });
+
   test('未 @ 时待办指令不触发', async () => {
     const todo = makeTodoStub();
     const handler = new MessageHandler({ config: baseConfig, rag: null, todo });

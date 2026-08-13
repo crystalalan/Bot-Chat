@@ -252,12 +252,28 @@ export class TodoManager {
     return null;
   }
 
-  async _resolveContact(room, id) {
-    if (this.contactCache.has(id)) return this.contactCache.get(id);
+  async _resolveContact(room, id, name) {
+    if (id && this.contactCache.has(id)) return this.contactCache.get(id);
     if (!room) return null;
-    const member = await room.member({ id });
-    if (member) this.contactCache.set(id, member);
-    return member;
+    try {
+      if (id) {
+        const member = await room.member({ id });
+        if (member) {
+          if (id) this.contactCache.set(id, member);
+          return member;
+        }
+      }
+      if (name) {
+        const member = await room.member({ name });
+        if (member) {
+          if (id) this.contactCache.set(id, member);
+          return member;
+        }
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 
   async remind(todo) {
@@ -266,15 +282,20 @@ export class TodoManager {
     const text = `待办提醒：${todo.content}（${formatTime(todo.remindAt)}）`;
     if (todo.scope === 'group') {
       const ids = [...new Set([...(todo.participants || []).map((p) => p.id), todo.creatorId].filter(Boolean))];
+      const names = new Map();
+      for (const p of todo.participants || []) {
+        if (p.id) names.set(p.id, p.name);
+      }
+      if (todo.creatorId && todo.creatorName) names.set(todo.creatorId, todo.creatorName);
       const contacts = [];
       for (const id of ids) {
-        const c = await this._resolveContact(room, id);
+        const c = await this._resolveContact(room, id, names.get(id));
         if (c) contacts.push(c);
       }
       if (contacts.length > 0) await room.say(text, ...contacts);
       else await room.say(text);
     } else {
-      const c = await this._resolveContact(room, todo.creatorId);
+      const c = await this._resolveContact(room, todo.creatorId, todo.creatorName);
       if (c) await room.say(text, c);
       else await room.say(text);
     }

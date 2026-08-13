@@ -198,6 +198,42 @@ describe('TodoManager 提醒', () => {
     fs.unlinkSync(file);
   });
 
+  test('缓存失效时按 name 回退查找创建者并 @', async () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const spy = makeSpySay();
+    const found = makeContact('u1', '张三');
+    const room = { id: 'r1', say: spy.say, member: async ({ name }) => (name === '张三' ? found : null) };
+    mgr.roomCache.set('r1', room);
+    mgr.add({ scope: 'personal', content: '交周报', remindAt: Date.now() - 1000, roomId: 'r1', creator: makeContact('u1', '张三') });
+    mgr.contactCache.clear();
+    await mgr.tick();
+    expect(spy.calls.length).toBe(1);
+    expect(spy.calls[0][1].id).toBe('u1');
+    fs.unlinkSync(file);
+  });
+
+  test('按 name 回退查找团体参与成员', async () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const creator = makeContact('u1', '张三');
+    const lisi = makeContact('u2', '李四');
+    const spy = makeSpySay();
+    const room = {
+      id: 'r1',
+      say: spy.say,
+      member: async ({ name }) => (name === '李四' ? lisi : name === '张三' ? creator : null),
+    };
+    mgr.roomCache.set('r1', room);
+    mgr.add({ scope: 'group', content: '开会', remindAt: Date.now() - 1000, roomId: 'r1', creator, participants: [lisi] });
+    mgr.contactCache.clear();
+    await mgr.tick();
+    expect(spy.calls.length).toBe(1);
+    const ids = spy.calls[0].slice(1).map((c) => c.id).sort();
+    expect(ids).toEqual(['u1', 'u2']);
+    fs.unlinkSync(file);
+  });
+
   test('到期团体待办 @ 参与成员与发起人', async () => {
     const file = tmpFile();
     const mgr = new TodoManager({ file });
