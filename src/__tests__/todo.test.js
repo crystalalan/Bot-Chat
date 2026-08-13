@@ -31,6 +31,45 @@ describe('parseRemindTime', () => {
     expect(rest).toBe('交周报');
   });
 
+  test('解析指定日期与时间（8月25日 14:30）', () => {
+    const now = new Date();
+    const { remindAt, rest } = parseRemindTime('8月25日 14:30 交报告');
+    expect(rest).toBe('交报告');
+    const d = new Date(remindAt);
+    expect(d.getMonth() + 1).toBe(8);
+    expect(d.getDate()).toBe(25);
+    expect(d.getHours()).toBe(14);
+    expect(d.getMinutes()).toBe(30);
+    let expectedYear = now.getFullYear();
+    if (now.getMonth() + 1 > 8 || (now.getMonth() + 1 === 8 && now.getDate() > 25)) expectedYear += 1;
+    expect(d.getFullYear()).toBe(expectedYear);
+  });
+
+  test('解析带年份的日期时间', () => {
+    const { remindAt, rest } = parseRemindTime('2027年8月25日 14:30 交报告');
+    expect(rest).toBe('交报告');
+    const d = new Date(remindAt);
+    expect(d.getFullYear()).toBe(2027);
+    expect(d.getMonth() + 1).toBe(8);
+    expect(d.getDate()).toBe(25);
+    expect(d.getHours()).toBe(14);
+  });
+
+  test('解析指定日期无时间（默认 9 点）', () => {
+    const { remindAt, rest } = parseRemindTime('8月25日 交报告');
+    expect(rest).toBe('交报告');
+    const d = new Date(remindAt);
+    expect(d.getHours()).toBe(9);
+  });
+
+  test('解析指定日期下午时刻', () => {
+    const { remindAt, rest } = parseRemindTime('8月25日下午2点30分 开会');
+    expect(rest).toBe('开会');
+    const d = new Date(remindAt);
+    expect(d.getHours()).toBe(14);
+    expect(d.getMinutes()).toBe(30);
+  });
+
   test('解析明天单独（默认 9 点）', () => {
     const { remindAt, rest } = parseRemindTime('明天 交周报');
     expect(remindAt).toBeGreaterThan(Date.now());

@@ -20,6 +20,22 @@ export function parseRemindTime(text) {
   const mHour = s.match(/^(\d+)\s*小时后/);
   if (mHour) return { remindAt: Date.now() + parseInt(mHour[1], 10) * HOUR, rest: s.slice(mHour[0].length).trim() };
 
+  const mDate = s.match(/^((?:(\d{4})年)?\s*(\d{1,2})月\s*(\d{1,2})[日号])\s*(上午|下午|晚上)?\s*(?:(\d{1,2})\s*[:点时]\s*(\d{1,2})?分?)?/);
+  if (mDate && mDate[3] && mDate[4]) {
+    let year = mDate[2] ? parseInt(mDate[2], 10) : now.getFullYear();
+    let month = parseInt(mDate[3], 10) - 1;
+    const day = parseInt(mDate[4], 10);
+    let hour = mDate[6] ? parseInt(mDate[6], 10) : 9;
+    const minute = mDate[7] ? parseInt(mDate[7], 10) : 0;
+    if (mDate[5] === '下午' && hour < 12) hour += 12;
+    if (mDate[5] === '晚上' && hour < 12) hour += 12;
+    let d = new Date(year, month, day, hour, minute, 0, 0);
+    if (!mDate[2] && d.getTime() <= now.getTime()) {
+      d = new Date(year + 1, month, day, hour, minute, 0, 0);
+    }
+    return { remindAt: d.getTime(), rest: s.slice(mDate[0].length).trim() };
+  }
+
   const mExact = s.match(/^(今天|明天|后天)\s*(上午|下午|晚上)?\s*(\d{1,2})\s*[:点时]\s*(\d{1,2})?分?/);
   if (mExact) {
     const offset = DAY_OFFSETS[mExact[1]] ?? 0;
