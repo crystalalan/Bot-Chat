@@ -166,18 +166,18 @@ export class MessageHandler {
     }
 
     if (cmd.action === 'list') {
-      return this.todo.formatList(roomId);
+      return this.todo.formatList(roomId, topic);
     }
 
     if (cmd.action === 'done') {
-      const todo = this.todo.markDone(roomId, cmd.scope, cmd.seq);
+      const todo = this.todo.markDone(roomId, cmd.scope, cmd.seq, topic);
       if (!todo) return '未找到对应序号的待办。';
       return `已完成待办：${todo.content}`;
     }
 
     if (cmd.action === 'remove') {
       const seqs = cmd.seqs && cmd.seqs.length > 0 ? cmd.seqs : [cmd.seq];
-      const removed = this.todo.removeMany(roomId, cmd.scope, seqs);
+      const removed = this.todo.removeMany(roomId, cmd.scope, seqs, topic);
       if (!removed || removed.length === 0) return '未找到对应序号的待办。';
       const names = removed.map((t) => t.content).join('、');
       return removed.length === 1 ? `已删除待办：${names}` : `已删除 ${removed.length} 条待办：${names}`;

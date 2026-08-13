@@ -185,6 +185,51 @@ describe('TodoManager', () => {
     fs.unlinkSync(file);
   });
 
+  test('重启后 roomId 变化时按 roomTopic 回退查到未完成待办', () => {
+    const file = tmpFile();
+    let mgr = new TodoManager({ file });
+    mgr.add({ scope: 'personal', content: '跨重启待办', remindAt: null, roomId: 'old-id', roomTopic: '测试群', creator: makeContact('u1', '张三') });
+    mgr = new TodoManager({ file });
+    const personal = mgr.list('new-id', 'personal', '测试群');
+    expect(personal.length).toBe(1);
+    expect(personal[0].content).toBe('跨重启待办');
+    expect(mgr.formatList('new-id', '测试群')).toContain('跨重启待办');
+    fs.unlinkSync(file);
+  });
+
+  test('完成待办后从文件清除记录', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    mgr.add({ scope: 'personal', content: '交周报', remindAt: null, roomId: 'r1', creator: makeContact('u1', '张三') });
+    mgr.markDone('r1', 'personal', 1);
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    expect(raw.filter((t) => t.content === '交周报')).toEqual([]);
+    fs.unlinkSync(file);
+  });
+
+  test('删除待办后从文件清除记录', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    mgr.add({ scope: 'personal', content: '交周报', remindAt: null, roomId: 'r1', creator: makeContact('u1', '张三') });
+    mgr.remove('r1', 'personal', 1);
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    expect(raw.filter((t) => t.content === '交周报')).toEqual([]);
+    fs.unlinkSync(file);
+  });
+
+  test('按 roomTopic 回退完成/删除待办', () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    mgr.add({ scope: 'group', content: '开会', remindAt: null, roomId: 'old-id', roomTopic: '测试群', creator: makeContact('u1', '张三') });
+    const done = mgr.markDone('new-id', 'group', 1, '测试群');
+    expect(done.content).toBe('开会');
+    expect(mgr.list('new-id', 'group', '测试群').length).toBe(0);
+    mgr.add({ scope: 'group', content: '值班', remindAt: null, roomId: 'old-id', roomTopic: '测试群', creator: makeContact('u1', '张三') });
+    const removed = mgr.removeMany('new-id', 'group', [1], '测试群');
+    expect(removed[0].content).toBe('值班');
+    fs.unlinkSync(file);
+  });
+
   test('formatAdd 输出个人/团体待办', () => {
     const file = tmpFile();
     const mgr = new TodoManager({ file });

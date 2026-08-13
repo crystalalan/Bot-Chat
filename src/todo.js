@@ -176,35 +176,36 @@ export class TodoManager {
     return todo;
   }
 
-  list(roomId, scope = null) {
+  list(roomId, scope = null, roomTopic = '') {
     return this.todos
-      .filter((t) => t.roomId === roomId && !t.done)
+      .filter((t) => (t.roomId === roomId || (roomTopic && t.roomTopic && t.roomTopic === roomTopic)) && !t.done)
       .filter((t) => !scope || t.scope === scope);
   }
 
-  findBySeq(roomId, scope, seq) {
-    const list = this.list(roomId, scope);
+  findBySeq(roomId, scope, seq, roomTopic = '') {
+    const list = this.list(roomId, scope, roomTopic);
     return list[seq - 1] || null;
   }
 
-  markDone(roomId, scope, seq) {
-    const todo = this.findBySeq(roomId, scope, seq);
+  markDone(roomId, scope, seq, roomTopic = '') {
+    const todo = this.findBySeq(roomId, scope, seq, roomTopic);
     if (!todo) return null;
     todo.done = true;
+    this.todos = this.todos.filter((t) => t.id !== todo.id);
     this._save();
     return todo;
   }
 
-  remove(roomId, scope, seq) {
-    const todo = this.findBySeq(roomId, scope, seq);
+  remove(roomId, scope, seq, roomTopic = '') {
+    const todo = this.findBySeq(roomId, scope, seq, roomTopic);
     if (!todo) return null;
     this.todos = this.todos.filter((t) => t.id !== todo.id);
     this._save();
     return todo;
   }
 
-  removeMany(roomId, scope, seqs) {
-    const list = this.list(roomId, scope);
+  removeMany(roomId, scope, seqs, roomTopic = '') {
+    const list = this.list(roomId, scope, roomTopic);
     const unique = [...new Set(seqs.map((n) => Number(n)))].sort((a, b) => a - b);
     const targets = [];
     for (const seq of unique) {
@@ -218,9 +219,9 @@ export class TodoManager {
     return targets;
   }
 
-  formatList(roomId) {
-    const personal = this.list(roomId, 'personal');
-    const group = this.list(roomId, 'group');
+  formatList(roomId, roomTopic = '') {
+    const personal = this.list(roomId, 'personal', roomTopic);
+    const group = this.list(roomId, 'group', roomTopic);
     if (personal.length === 0 && group.length === 0) return '当前群没有未完成的待办。';
     const lines = [];
     if (personal.length > 0) {
