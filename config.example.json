@@ -34,5 +34,9 @@
   "gacha": {
     "keywords": ["抽卡", "抽一张"],
     "replies": ["你很棒", "你今天非常漂亮"]
+  },
+  "todo": {
+    "enabled": true,
+    "intervalMs": 30000
   }
 }

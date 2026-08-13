@@ -25,6 +25,10 @@ export const DEFAULT_CONFIG = {
     keywords: ['抽卡'],
     replies: [],
   },
+  todo: {
+    enabled: true,
+    intervalMs: 30000,
+  },
 };
 
 function mergeDeep(base, override) {
@@ -76,6 +80,9 @@ function validate(config) {
     if (config.gacha.replies !== undefined && !Array.isArray(config.gacha.replies)) {
       throw new Error('gacha.replies 必须是字符串数组');
     }
+  }
+  if (config.todo !== undefined && typeof config.todo !== 'object') {
+    throw new Error('todo 必须是对象');
   }
   return true;
 }

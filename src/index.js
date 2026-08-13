@@ -9,6 +9,7 @@ import { WeatherClient } from './weather.js';
 import { SearchClient } from './search.js';
 import { ZodiacClient } from './zodiac.js';
 import { Chat } from './chat.js';
+import { TodoManager } from './todo.js';
 import { MessageHandler } from './handler.js';
 import { RateLimiter } from './ratelimit.js';
 import { createBot } from './bot.js';
@@ -56,9 +57,10 @@ async function main() {
   const search = new SearchClient();
   const zodiac = new ZodiacClient();
   const chat = new Chat({ llm, config });
-  const handler = new MessageHandler({ config, rag, weather, search, chat, zodiac });
+  const todo = config.todo?.enabled ? new TodoManager({ intervalMs: config.todo.intervalMs }) : null;
+  const handler = new MessageHandler({ config, rag, weather, search, chat, zodiac, todo });
   const rateLimiter = new RateLimiter(config.rateLimit);
-  const bot = await createBot({ config, handler, rateLimiter });
+  const bot = await createBot({ config, handler, rateLimiter, todo });
 
   console.log('----------------------------------------');
   console.log('微信群聊自动回复机器人启动中...');
@@ -71,6 +73,7 @@ async function main() {
   console.log(`星座运势: ${zodiac.enabled ? '已启用' : '未配置 KEY（星座功能不可用）'}`);
   const gachaReplies = (config.gacha?.replies || []).length;
   console.log(`抽卡回复: ${gachaReplies > 0 ? `已启用（${gachaReplies} 条话术）` : '未配置话术（抽卡功能不可用）'}`);
+  console.log(`待办提醒: ${todo ? '已启用（@ 机器人添加，到点自动提醒）' : '已禁用'}`);
   console.log('请用微信扫码登录。按 Ctrl+C 退出。');
   console.log('----------------------------------------');
 
@@ -80,6 +83,7 @@ async function main() {
     shuttingDown = true;
     console.log(`\n[退出] 收到 ${signal}，正在正常登出以清除微信会话...`);
 
+    if (todo) todo.stop();
     const forceExitTimer = setTimeout(() => {
       console.warn('[退出] 清理超时，强制退出。');
       process.exit(0);

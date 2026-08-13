@@ -9,14 +9,16 @@ const baseConfig = {
   noResultReply: '未找到相关内容。',
 };
 
-function makeMessage({ self = false, type = MESSAGE_TYPE_TEXT, text = '', roomTopic = '测试群', mentioned = false, mentionNames = [] }) {
+function makeMessage({ self = false, type = MESSAGE_TYPE_TEXT, text = '', roomTopic = '测试群', mentioned = false, mentionNames = [], mentionContacts = null, talkerId = '', talkerName = '' }) {
+  const contacts = mentionContacts || mentionNames.map((n) => ({ id: n, name: () => n }));
   return {
     self: () => self,
     type: () => type,
     text: () => text,
     room: () => ({ topic: async () => roomTopic }),
     mentionSelf: async () => mentioned,
-    mentionList: async () => mentionNames.map((n) => ({ name: () => n })),
+    mentionList: async () => contacts,
+    talker: () => ({ id: talkerId, name: () => talkerName }),
   };
 }
 
@@ -259,6 +261,77 @@ describe('MessageHandler 抽卡', () => {
     const handler = new MessageHandler({ config, rag: null });
     const msg = makeMessage({ mentioned: true, text: '@机器人 抽卡' });
     expect(await handler.handle(msg)).toBe(baseConfig.mentionReply);
+  });
+});
+
+describe('MessageHandler 待办', () => {
+  function makeTodoStub() {
+    return {
+      add: (args) => ({ ...args, id: 't1', reminded: false, createdAt: Date.now() }),
+      formatAdd: (t) => `已添加${t.scope === 'group' ? '团体' : '个人'}待办：${t.content}`,
+      formatList: () => '当前群没有未完成的待办。',
+      markDone: (roomId, scope, seq) => (seq === 1 ? { content: '交周报' } : null),
+      remove: (roomId, scope, seq) => (seq === 1 ? { content: '交周报' } : null),
+    };
+  }
+
+  function todoMessage({ text, mentioned = true, talkerId = 'u1', talkerName = '张三', mentions = [] }) {
+    const contacts = [
+      { id: 'bot-id', name: () => '机器人' },
+      ...mentions,
+    ];
+    return makeMessage({ mentioned, text, mentionContacts: contacts, talkerId, talkerName });
+  }
+
+  test('@ 并添加个人待办', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo, bot: { userSelf: () => ({ id: 'bot-id' }) } });
+    const msg = todoMessage({ text: '@机器人 添加个人待办 明天9点 交周报', talkerId: 'u1', talkerName: '张三' });
+    expect(await handler.handle(msg)).toBe('已添加个人待办：交周报');
+  });
+
+  test('@ 并添加团体待办，参与成员为消息中 @ 的其他成员', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo, bot: { userSelf: () => ({ id: 'bot-id' }) } });
+    const lisi = { id: 'u2', name: () => '李四' };
+    const msg = todoMessage({ text: '@机器人 添加团体待办 明天9点 开会 @李四', talkerId: 'u1', talkerName: '张三', mentions: [lisi] });
+    const reply = await handler.handle(msg);
+    expect(reply).toBe('已添加团体待办：开会');
+    expect(todo.add).toBeDefined();
+  });
+
+  test('未 @ 时待办指令不触发', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '添加个人待办 明天9点 交周报', mentioned: false });
+    expect(await handler.handle(msg)).toBeNull();
+  });
+
+  test('@ 查看待办', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '@机器人 查看待办' });
+    expect(await handler.handle(msg)).toBe('当前群没有未完成的待办。');
+  });
+
+  test('@ 完成待办 1', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '@机器人 完成待办 1' });
+    expect(await handler.handle(msg)).toBe('已完成待办：交周报');
+  });
+
+  test('@ 删除待办 1', async () => {
+    const todo = makeTodoStub();
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo });
+    const msg = todoMessage({ text: '@机器人 删除待办 1' });
+    expect(await handler.handle(msg)).toBe('已删除待办：交周报');
+  });
+
+  test('待办未配置时返回提示', async () => {
+    const handler = new MessageHandler({ config: baseConfig, rag: null, todo: null });
+    const msg = todoMessage({ text: '@机器人 查看待办' });
+    expect(await handler.handle(msg)).toContain('待办功能未配置');
   });
 });
 

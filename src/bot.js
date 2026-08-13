@@ -1,6 +1,6 @@
 import qrcodeTerminal from 'qrcode-terminal';
 
-export async function createBot({ config, handler, rateLimiter }) {
+export async function createBot({ config, handler, rateLimiter, todo }) {
   const { WechatyBuilder } = await import('wechaty');
   const bot = WechatyBuilder.build({ name: 'bot-chat' });
   let scanned = false;
@@ -14,6 +14,7 @@ export async function createBot({ config, handler, rateLimiter }) {
 
   bot.on('login', (user) => {
     console.log(`[登录成功] ${user.name()} (${user.id})`);
+    if (todo) todo.start(bot);
     if (!scanned) {
       console.warn(
         '[提示] 本次为自动恢复上次登录会话（未扫码）。若出现"已登录但收不到/发不出消息"，说明会话已失效。' +
