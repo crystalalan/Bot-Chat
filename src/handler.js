@@ -147,6 +147,7 @@ export class MessageHandler {
         remindAt,
         roomId,
         roomTopic: topic,
+        room,
         creator,
         participants,
       });

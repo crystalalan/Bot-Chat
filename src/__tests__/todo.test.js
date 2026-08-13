@@ -227,4 +227,30 @@ describe('TodoManager 提醒', () => {
     expect(spy.calls.length).toBe(0);
     fs.unlinkSync(file);
   });
+
+  test('add 传入 room 对象时缓存，提醒复用缓存 room', async () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const creator = makeContact('u1', '张三');
+    const spy = makeSpySay();
+    const room = { id: 'r1', say: spy.say };
+    mgr.add({ scope: 'personal', content: '交周报', remindAt: Date.now() - 1000, roomId: 'r1', room, creator });
+    await mgr.tick();
+    expect(spy.calls.length).toBe(1);
+    expect(mgr.roomCache.has('r1')).toBe(true);
+    fs.unlinkSync(file);
+  });
+
+  test('roomCache 缺失时按 topic 查找群并提醒', async () => {
+    const file = tmpFile();
+    const mgr = new TodoManager({ file });
+    const creator = makeContact('u1', '张三');
+    const spy = makeSpySay();
+    const room = { id: 'r1', say: spy.say };
+    mgr.bot = { Room: { find: async (q) => (q.topic === '测试群' ? room : null) } };
+    mgr.add({ scope: 'personal', content: '交周报', remindAt: Date.now() - 1000, roomId: 'r1', roomTopic: '测试群', creator });
+    await mgr.tick();
+    expect(spy.calls.length).toBe(1);
+    fs.unlinkSync(file);
+  });
 });

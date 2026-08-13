@@ -141,7 +141,11 @@ export class TodoManager {
     }
   }
 
-  add({ scope, content, remindAt, roomId, roomTopic, creator, participants }) {
+  cacheRoom(room) {
+    if (room && room.id) this.roomCache.set(room.id, room);
+  }
+
+  add({ scope, content, remindAt, roomId, roomTopic, creator, participants, room }) {
     const now = Date.now();
     const todo = {
       id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -158,7 +162,7 @@ export class TodoManager {
       participants: (participants || []).map((c) => ({ id: c.id, name: c.name ? c.name() : '' })),
     };
     this.todos.push(todo);
-    if (roomId && !this.roomCache.has(roomId)) this.roomCache.set(roomId, null);
+    if (room) this.cacheRoom(room);
     this.cacheContacts([creator, ...(participants || [])]);
     this._save();
     return todo;
@@ -232,10 +236,20 @@ export class TodoManager {
 
   async _resolveRoom(todo) {
     if (this.roomCache.has(todo.roomId)) return this.roomCache.get(todo.roomId);
-    if (!this.bot || !todo.roomId) return null;
-    const room = await this.bot.Room.find({ id: todo.roomId });
-    if (room) this.roomCache.set(todo.roomId, room);
-    return room;
+    if (!this.bot || (!todo.roomId && !todo.roomTopic)) return null;
+    try {
+      const query = {};
+      if (todo.roomTopic) query.topic = todo.roomTopic;
+      else if (todo.roomId) query.id = todo.roomId;
+      const room = await this.bot.Room.find(query);
+      if (room && room.id) {
+        this.roomCache.set(todo.roomId || room.id, room);
+        return room;
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 
   async _resolveContact(room, id) {
